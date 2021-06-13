@@ -3,13 +3,15 @@ from matplotlib import pyplot as plt
 from math import exp, inf, sqrt
 
 class state:
-    def __init__(self, reward, ego_vel, ego_yaw, prev_action, prev_reward,longitudinal,lane_offset,action) -> None:
-        self.reward = reward_func(obs_dist_lat,obs_dist_long,ego_vel,ego_yaw,prev_action,prev_reward)
+    def __init__(self, reward, ego_vel, ego_yaw, prev_action, prev_reward,longitudinal,lane_offset,action,time) -> None:
+        # here time  = prev node time + action time.
+        self.reward = reward
         self.ego_vel = ego_vel
         self.ego_yaw = ego_yaw
         self.children = []
         self.pos = [longitudinal,lane_offset]
         self.action = action
+        self.time = time
 
 
 def add_node(parent, child):
@@ -17,14 +19,20 @@ def add_node(parent, child):
 
 def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward):
     reward = 0
+    k = 1
+    if child.pos[0] < 50 and child.pos[0] > 45 and abs(child.pos[1]) < 0.9375:
+        return 900
+    if child.pos[0] > 50 or abs(child.pos[1]) > 1.875:
+        return -inf 
     for i in len(obs_dist_long):
         if obs_dist_long[i][0] < child.pos[0] and obs_dist_long[i][1] > child.pos[0] and obs_dist_lat[i][0] < child.pos[1] and obs_dist_lat[i][1] > child.pos[1]:
             return -inf
         else:
-            # reward = reward + np.
+            # TODO reward for distance from obstacles
             pass
 
-    reward = reward + 1/(1 + exp(abs(50 - child.pos[0])))
+    reward = reward + k/(1 + exp(abs(50 - child.pos[0])))
+    reward = reward - k*(child.time)
     return reward
 
 
@@ -55,8 +63,7 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long):
     child = parent
     child.pos[0] = child.pos[0] + 0.9375
     child.pos[1] = child.pos[1] + (0.9375*(sqrt(3)))
-    obs_dist_lat_rel, obs_dist_long_rel = rel_distance(child, obs_dist_lat, obs_dist_long)
-    child.reward = reward_func(child,obs_dist_lat_rel, obs_dist_long_rel,parent.ego_vel,parent.ego_yaw,parent.prev_action,parent.reward)
+    child.reward = reward_func(child,obs_dist_lat, obs_dist_long,parent.ego_vel,parent.ego_yaw,parent.prev_action,parent.reward)
     # push in children of the parent 
     parent.children.append(child)
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
@@ -68,8 +75,7 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long):
     child = parent
     child.pos[0] = child.pos[0] + 0.9375
     child.pos[1] = child.pos[1] + (0.9375*(sqrt(3)))
-    obs_dist_lat_rel, obs_dist_long_rel = rel_distance(child, obs_dist_lat, obs_dist_long)
-    child.reward = reward_func(child,obs_dist_lat_rel, obs_dist_long_rel,parent.ego_vel,parent.ego_yaw,parent.prev_action,parent.reward)
+    child.reward = reward_func(child,obs_dist_lat, obs_dist_long,parent.ego_vel,parent.ego_yaw,parent.prev_action,parent.reward)
     # push in children of the parent 
     parent.children.append(child)
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
@@ -77,4 +83,16 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long):
         generate_nodes(parent.children[len(parent.children)-1], 3, obs_dist_lat, obs_dist_long)
     return 
 
+def DFS(parent, node_list):
+    if parent.reward == -inf:
+        node_list.append(parent)
+        return node_list
+    if parent.reward == 900:
+        node_list.append(parent)
+        return node_list
+    
+    for i in range(len(parent.children)):
+        node_list.append(DFS(parent.children[i],node_list))
+    
+    return node_list
     
