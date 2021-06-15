@@ -96,3 +96,4 @@ def DFS(parent, node_list):
     
     return node_list
     
+if main
