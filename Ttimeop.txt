@@ -1,0 +1,13 @@
+Time taken to generate tree 0.3278021812438965
+Time taken to traverse tree 0.05215597152709961
+Time taken to generate tree 1.5323436260223389
+Time taken to traverse tree 0.16641688346862793
+Time taken to generate tree 4.7740912437438965
+Time taken to traverse tree 0.5275506973266602
+Time taken to generate tree 10.01125717163086
+Time taken to traverse tree 1.2207746505737305
+Time taken to generate tree 10.734445571899414
+Time taken to traverse tree 2.157013416290283
+Time taken to generate tree 135.28856468200684
+Time taken to traverse tree 11.93027377128601
+
