@@ -107,7 +107,7 @@ def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
     child2.action = 2
     child2.reward = reward_func(child2,obs_dist_lat, obs_dist_long,parent.action,parent.reward,scene_len)
     # child2.time =  parent.time + (sqrt(0.935**2 + (0.935*sqrt(3))**2)/6.33)
-    child.time = parent.time + (1.875/6.33)
+    child2.time = parent.time + (1.875/6.33)
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child2):
         # print(child2.pos[0])
@@ -174,7 +174,7 @@ if __name__ == "__main__":
             sum = sum + k.reward
         if sum > prev_sum:
             print(sum,"\n")
-            print([[i[k].pos[0],i[k].pos[1]] for k in range(len(i))],"\n")
+            print([[i[k].pos[0],i[k].pos[1], i[k].time] for k in range(len(i))],"\n")
             print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
             # please remember that you've mapped actions incorrectly
             prev_sum = sum
