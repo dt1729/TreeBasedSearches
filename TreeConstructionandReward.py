@@ -22,17 +22,19 @@ def add_node(parent, child):
 def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_len):
     reward = 0
     k = 10
-    if child.pos[0] < scene_len and child.pos[0] > scene_len-0.1 and abs(child.pos[1]) < 0.9375 :
-        return 900
     if child.pos[0] >= scene_len or abs(child.pos[1]) >= 1.875:
         return -inf 
     if child.time >= scene_len/6.33:
         return -inf
     for i in range(len(obs_dist_long)):
         if obs_dist_long[i][0] < child.pos[0] and obs_dist_long[i][1] > child.pos[0] and obs_dist_lat[i][0] < child.pos[1] and obs_dist_lat[i][1] > child.pos[1]:
-              return -inf
+                return -inf
         else:
             reward = reward+1
+    if child.pos[0] < scene_len and child.pos[0] > scene_len-0.1 and abs(child.pos[1]) < 0.9375 :
+        return 900
+
+
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
     reward = reward + k*1/(scene_len - child.pos[0])
@@ -46,9 +48,26 @@ def check_validity(node):
     else:
         return True
 
-def generate_nodes(parent,obs_dist_lat,obs_dist_long,scene_len):
+def dynamic_obs_gen(deltaT,u,a,long_ini,lat_ini):
+    long_ini = [[10,12.5]]
+    lat_ini = [[-1.875,-0.9375]]
+
+    # add a for loop for velocity and accelaration of vehicles here if you want multiple obstacles
+    for iter in range(len(u)):
+        for i in long_ini:
+            # updating longitudinal coordinates
+            i[0] = (u[iter]*deltaT) + 0.5*a[iter]*(deltaT**2) + i[0]
+            i[1] = (u[iter]*deltaT) + 0.5*a[iter]*(deltaT**2) + i[1]
+    return long_ini, lat_ini
+
+
+
+def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
     #0->go left lane, 1-> stay, 2->go right
 
+
+    # generating position of dynamic obstacles given the previous position and simple mathematical model of the obstacles.
+    obs_dist_long, obs_dist_lat = dynamic_obs_gen(1.875/6.33,obs_vel, obs_acc, obs_long_ini, obs_lat_ini)
 
     child = state(0,30,0,0,0,0,0,0,0)
     child1 = state(0,30,0,0,0,0,0,0,0)
@@ -59,13 +78,12 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long,scene_len):
     child1.action = 1
     child1.time =  parent.time + (1.875/6.33)
     child1.reward = reward_func(child1,obs_dist_lat, obs_dist_long,parent.action,parent.reward,scene_len)
-    # push in children of the parent 
 
-    # if(child1.time > (10/6.33)):
-    #     print(child1.time)
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child1):
-        child1 = generate_nodes(child1, obs_dist_lat, obs_dist_long,scene_len)
+        child1 = generate_nodes(child1, obs_dist_lat, obs_dist_long,scene_len,obs_vel, obs_acc)
+
+    # push in children of the parent 
     parent.children.append(child1)
 
     # print(parent.pos[1])  
@@ -80,7 +98,7 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long,scene_len):
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child):
         # print(child.pos[0]) 
-        child = generate_nodes(child, obs_dist_lat, obs_dist_long,scene_len) 
+        child = generate_nodes(child, obs_dist_lat, obs_dist_long,scene_len,obs_vel, obs_acc) 
     parent.children.append(child)
 
 
@@ -93,7 +111,7 @@ def generate_nodes(parent,obs_dist_lat,obs_dist_long,scene_len):
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child2):
         # print(child2.pos[0])
-        child2 = generate_nodes(child2, obs_dist_lat, obs_dist_long,scene_len)
+        child2 = generate_nodes(child2, obs_dist_lat, obs_dist_long,scene_len,obs_vel, obs_acc)
     parent.children.append(child2)
     return parent
 
@@ -133,12 +151,14 @@ def BFS(parent):
      
 if __name__ == "__main__":
     temp = state(0,30,0,0,0,0,0,0,0)
-    obs_lat = [[-1.875,-0.9375],[-0.9375,0.9375]]
-    obs_long = [[10,12.5],[14,16]]
+    obs_lat = [[-1.875,-0.9375]]
+    obs_long = [[10,12.5]]
+    obs_vel = [6.33]
+    obs_acc = [0]
     scene_len = [20]
     # for count in scene_len:
     t= time.time()
-    temp = generate_nodes(temp, obs_lat, obs_long,20)
+    temp = generate_nodes(temp, obs_lat, obs_long,20,obs_vel, obs_acc)
     print("Time taken to generate tree", time.time() - t)
     ans = []
     ans1 = [[]]
