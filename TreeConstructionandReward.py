@@ -4,6 +4,7 @@ from math import exp, inf, sqrt
 import copy 
 import time
 import sys
+
 class state:
     def __init__(self, reward, ego_vel, ego_yaw, prev_action, prev_reward,longitudinal,lane_offset,action,time) -> None:
         # here time  = prev node time + action time.
@@ -30,20 +31,20 @@ def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_l
         if obs_dist_long[i][0] < child.pos[0] and obs_dist_long[i][1] > child.pos[0] and obs_dist_lat[i][0] < child.pos[1] and obs_dist_lat[i][1] > child.pos[1]:
                 return -inf
         else:
-            reward = reward+1
+            reward = reward -1
     if child.pos[0] < scene_len and child.pos[0] > scene_len-0.1 and abs(child.pos[1]) < 0.9375 :
-        return 900
-
-
+        return 50
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
-    reward = reward + k*1/(scene_len - child.pos[0])
-    reward = reward + k*1/((scene_len/6.33) - child.time)
+    # reward = reward - k*abs(scene_len - child.pos[0])/scene_len
+    # reward = reward - k*abs(0 - child.pos[1])/1.875
+    # reward = reward - k*abs((scene_len/6.33) - child.time)/(scene_len/6.33)
+    reward = reward - 100
     return reward
 
 
 def check_validity(node):
-    if node.reward == -inf or node.reward == 900:
+    if node.reward == -inf or node.reward == 50:
         return False
     else:
         return True
@@ -78,6 +79,7 @@ def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
     child1.action = 1
     child1.time =  parent.time + (1.875/6.33)
     child1.reward = reward_func(child1,obs_dist_lat, obs_dist_long,parent.action,parent.reward,scene_len)
+    print(child1.time)
 
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child1):
@@ -125,7 +127,7 @@ def DFS(parent, node_list,list_list):
         temp = list()  
         temp.append(parent)
         return temp,False
-    if parent.reward == 900:
+    if parent.reward == 50:
         temp = list()  
         temp.append([parent])
         return temp,True
@@ -146,37 +148,42 @@ def DFS(parent, node_list,list_list):
             b = merge(b,temp_store)
     return b,a    
 
-def BFS(parent):
-    pass
-     
-if __name__ == "__main__":
-    temp = state(0,30,0,0,0,0,0,0,0)
-    obs_lat = [[-1.875,-0.9375]]
-    obs_long = [[10,12.5]]
-    obs_vel = [6.33]
-    obs_acc = [0]
-    scene_len = [20]
-    # for count in scene_len:
-    t= time.time()
-    temp = generate_nodes(temp, obs_lat, obs_long,20,obs_vel, obs_acc)
-    print("Time taken to generate tree", time.time() - t)
-    ans = []
-    ans1 = [[]]
-    t1 = time.time()
-    dt,_ = DFS(temp,ans,ans1)
-    print("Time taken to traverse tree", time.time() - t1)
+def bestBranch(dt):
     prev_sum = -inf
     sum = -inf
     best_branch = []
-    reward_dict = {}
     for i in dt:
         for k in i:
             sum = sum + k.reward
         if sum > prev_sum:
             print(sum,"\n")
             print([[i[k].pos[0],i[k].pos[1], i[k].time] for k in range(len(i))],"\n")
-            print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
+            # print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
+            ansPos = [[i[k].pos[0],i[k].pos[1], i[k].time] for k in range(len(i))]
+            ansAction = [[i[k-1].action,i[k].pos[1]] for k in range(len(i))]
             # please remember that you've mapped actions incorrectly
             prev_sum = sum
             best_branch = i
         sum = 0
+    return ansPos, ansAction
+
+def BFS(parent):
+    pass
+     
+if __name__ == "__main__":
+    temp = state(0,30,0,0,0,0,0,0,time.time()/10000000000)
+    obs_lat = [[-1.875,-0.9375]]
+    obs_long = [[10,12.5]]
+    obs_vel = [6.33]
+    obs_acc = [0]
+    scene_len = 20
+    # for count in scene_len:
+    t = time.time()
+    temp = generate_nodes(temp, obs_lat, obs_long,scene_len,obs_vel, obs_acc)
+    print("Time taken to generate tree", time.time() - t)
+    ans = []
+    ans1 = [[]]
+    t1 = time.time()
+    dt,_ = DFS(temp,ans,ans1)
+    print("Time taken to traverse tree", time.time() - t1)
+    bestBranch(dt)
