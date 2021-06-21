@@ -5,6 +5,10 @@ import copy
 import time
 import sys
 
+terminatingRew = -inf
+goalRew = 50
+
+
 class state:
     def __init__(self, reward, ego_vel, ego_yaw, prev_action, prev_reward,longitudinal,lane_offset,action,time) -> None:
         # here time  = prev node time + action time.
@@ -24,16 +28,16 @@ def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_l
     reward = 0
     k = 10
     if child.pos[0] >= scene_len or abs(child.pos[1]) >= 1.875:
-        return -inf 
+        return terminatingRew
     if child.time >= scene_len/6.33:
-        return -inf
+        return terminatingRew
     for i in range(len(obs_dist_long)):
         if obs_dist_long[i][0] < child.pos[0] and obs_dist_long[i][1] > child.pos[0] and obs_dist_lat[i][0] < child.pos[1] and obs_dist_lat[i][1] > child.pos[1]:
-                return -inf
+                return terminatingRew
         else:
             reward = reward -1
     if child.pos[0] < scene_len and child.pos[0] > scene_len-0.1 and abs(child.pos[1]) < 0.9375 :
-        return 50
+        return goalRew
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
     # reward = reward - k*abs(scene_len - child.pos[0])/scene_len
@@ -44,7 +48,7 @@ def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_l
 
 
 def check_validity(node):
-    if node.reward == -inf or node.reward == 50:
+    if node.reward == terminatingRew or node.reward == goalRew:
         return False
     else:
         return True
@@ -122,12 +126,12 @@ def merge(a,b):
         a.append(j)
     return a
 
-def DFS(parent, node_list,list_list):
-    if parent.reward == -inf:
+def DFS(parent,list_list):
+    if parent.reward == terminatingRew:
         temp = list()  
         temp.append(parent)
         return temp,False
-    if parent.reward == 50:
+    if parent.reward == goalRew:
         temp = list()  
         temp.append([parent])
         return temp,True
@@ -136,7 +140,7 @@ def DFS(parent, node_list,list_list):
     b = []
 
     for i in range(len(parent.children)):
-        temp_store,bol = DFS(parent.children[i],node_list, b)
+        temp_store,bol = DFS(parent.children[i], b)
         a = a or bol
         if bol == True:
             for t in temp_store:
@@ -149,8 +153,8 @@ def DFS(parent, node_list,list_list):
     return b,a    
 
 def bestBranch(dt):
-    prev_sum = -inf
-    sum = -inf
+    prev_sum = terminatingRew
+    sum = terminatingRew
     best_branch = []
     for i in dt:
         for k in i:
@@ -184,6 +188,6 @@ if __name__ == "__main__":
     ans = []
     ans1 = [[]]
     t1 = time.time()
-    dt,_ = DFS(temp,ans,ans1)
+    dt,_ = DFS(temp,ans1)
     print("Time taken to traverse tree", time.time() - t1)
     bestBranch(dt)
