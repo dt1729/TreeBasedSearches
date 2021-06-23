@@ -36,14 +36,15 @@ def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_l
                 return terminatingRew
         else:
             reward = reward -1
-    if child.pos[0] < scene_len and child.pos[0] > scene_len-0.1 and abs(child.pos[1]) < 0.9375 :
+    if child.pos[0] < scene_len and child.pos[0] > scene_len-1 and abs(child.pos[1]) < 0.9375 :
         return goalRew
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
     # reward = reward - k*abs(scene_len - child.pos[0])/scene_len
     # reward = reward - k*abs(0 - child.pos[1])/1.875
     # reward = reward - k*abs((scene_len/6.33) - child.time)/(scene_len/6.33)
-    reward = reward - 100
+    reward = reward - k*(abs(child.pos[1]))/1.875
+    reward = reward - 1
     return reward
 
 
@@ -54,8 +55,8 @@ def check_validity(node):
         return True
 
 def dynamic_obs_gen(deltaT,u,a,long_ini,lat_ini):
-    long_ini = [[10,12.5]]
-    lat_ini = [[-1.875,-0.9375]]
+    # long_ini = [[10,12.5]]
+    # lat_ini = [[-1.875,-0.9375]]
 
     # add a for loop for velocity and accelaration of vehicles here if you want multiple obstacles
     for iter in range(len(u)):
@@ -74,16 +75,15 @@ def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
     # generating position of dynamic obstacles given the previous position and simple mathematical model of the obstacles.
     obs_dist_long, obs_dist_lat = dynamic_obs_gen(1.875/6.33,obs_vel, obs_acc, obs_long_ini, obs_lat_ini)
 
-    child = state(0,30,0,0,0,0,0,0,0)
-    child1 = state(0,30,0,0,0,0,0,0,0)
-    child2 = state(0,30,0,0,0,0,0,0,0)
+    child = state(0,6.33,0,0,0,0,0,0,0)
+    child1 = state(0,6.33,0,0,0,0,0,0,0)
+    child2 = state(0,6.33,0,0,0,0,0,0,0)
     
     child1.pos[0] = parent.pos[0] + 1.875
     child1.pos[1] = parent.pos[1] + 0
     child1.action = 1
     child1.time =  parent.time + (1.875/6.33)
     child1.reward = reward_func(child1,obs_dist_lat, obs_dist_long,parent.action,parent.reward,scene_len)
-    print(child1.time)
 
     # call generate node on this generated node and pass parent as, parent.children[length(children)-1]
     if check_validity(child1):
@@ -126,7 +126,7 @@ def merge(a,b):
         a.append(j)
     return a
 
-def DFS(parent,list_list):
+def DFS(parent):
     if parent.reward == terminatingRew:
         temp = list()  
         temp.append(parent)
@@ -140,7 +140,7 @@ def DFS(parent,list_list):
     b = []
 
     for i in range(len(parent.children)):
-        temp_store,bol = DFS(parent.children[i], b)
+        temp_store,bol = DFS(parent.children[i])
         a = a or bol
         if bol == True:
             for t in temp_store:
@@ -148,36 +148,35 @@ def DFS(parent,list_list):
                     t.append(parent)
                 except:
                     print(t.reward)
-
             b = merge(b,temp_store)
     return b,a    
 
 def bestBranch(dt):
-    prev_sum = terminatingRew
-    sum = terminatingRew
+    prev_sum = -inf
+    sum = 0
     best_branch = []
     for i in dt:
         for k in i:
             sum = sum + k.reward
         if sum > prev_sum:
-            print(sum,"\n")
-            print([[i[k].pos[0],i[k].pos[1], i[k].time] for k in range(len(i))],"\n")
-            # print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
-            ansPos = [[i[k].pos[0],i[k].pos[1], i[k].time] for k in range(len(i))]
-            ansAction = [[i[k-1].action,i[k].pos[1]] for k in range(len(i))]
+            # print(sum,"\n")
+            print([[i[p].pos[0],i[p].pos[1], i[p].time] for p in range(len(i))],"\n")
+            print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
+            ansPos = [[i[p].pos[0],i[p].pos[1], i[p].time] for p in range(len(i))]
+            ansAction = [[i[p-1].action,i[p].pos[1]] for p in range(len(i))]
             # please remember that you've mapped actions incorrectly
             prev_sum = sum
             best_branch = i
         sum = 0
-    return ansPos, ansAction
+    return best_branch
 
 def BFS(parent):
     pass
      
 if __name__ == "__main__":
-    temp = state(0,30,0,0,0,0,0,0,time.time()/10000000000)
-    obs_lat = [[-1.875,-0.9375]]
-    obs_long = [[10,12.5]]
+    temp = state(0,6.33,0,0,0,0,0,0,time.time()/10000000000)
+    obs_lat = [[-0.875,0.875]]
+    obs_long = [[10,11.5]]
     obs_vel = [6.33]
     obs_acc = [0]
     scene_len = 20
@@ -188,6 +187,6 @@ if __name__ == "__main__":
     ans = []
     ans1 = [[]]
     t1 = time.time()
-    dt,_ = DFS(temp,ans1)
+    dt,_ = DFS(temp)
     print("Time taken to traverse tree", time.time() - t1)
     bestBranch(dt)
