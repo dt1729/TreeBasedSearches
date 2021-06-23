@@ -177,7 +177,7 @@ if __name__ == "__main__":
     temp = state(0,6.33,0,0,0,0,0,0,time.time()/10000000000)
     obs_lat = [[-0.875,0.875]]
     obs_long = [[10,11.5]]
-    obs_vel = [6.33]
+    obs_vel = [0]
     obs_acc = [0]
     scene_len = 20
     # for count in scene_len:
