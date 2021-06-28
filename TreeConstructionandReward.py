@@ -20,10 +20,22 @@ class state:
         self.action = action
         self.time = time
 
+class obstacle:
+    def __init__(self, obs_mean_ini_lat, obs_mean_ini_long, obs_cov_ini,obs_vel_ini_x,obs_vel_ini_y, obs_acc_ini_lat,obs_acc_ini_long):
+        # Expecting these to be single values except covariance, generates particles itself
+        self.cov = obs_cov_ini
+        self.mean = [obs_mean_ini_lat,obs_mean_ini_long]
+        self.vel_lat = obs_vel_ini_lat
+        self.vel_long = obs_vel_ini_long
+        self.acc_lat = obs_acc_ini_lat
+        self.acc_long = obs_acc_ini_long
+        x,y = np.random.multivariate_normal(obstacle_info.mean, obstacle_info.cov, 5).T #x,y are lat and long
+        self.particles = [[x[i],y[i]] for i in x]
 
 def add_node(parent, child):
     parent.children.append(child)
 
+#TODO add obstacle class object
 def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_len):
     reward = 0
     k = 10
@@ -36,7 +48,7 @@ def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_l
                 return terminatingRew
         else:
             reward = reward -1
-    if child.pos[0] < scene_len and child.pos[0] > scene_len-1 and abs(child.pos[1]) < 0.9375 :
+    if child.pos[0] < scene_len and child.pos[0] > scene_len-2 and abs(child.pos[1]) < 1.875 :
         return goalRew
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
@@ -54,10 +66,8 @@ def check_validity(node):
     else:
         return True
 
+# TODO obstacle class object to be passed
 def dynamic_obs_gen(deltaT,u,a,long_ini,lat_ini):
-    # long_ini = [[10,12.5]]
-    # lat_ini = [[-1.875,-0.9375]]
-
     # add a for loop for velocity and accelaration of vehicles here if you want multiple obstacles
     for iter in range(len(u)):
         for i in long_ini:
@@ -66,6 +76,11 @@ def dynamic_obs_gen(deltaT,u,a,long_ini,lat_ini):
             i[1] = (u[iter]*deltaT) + 0.5*a[iter]*(deltaT**2) + i[1]
     return long_ini, lat_ini
 
+def dynamic_obs_stochastic(deltaT,obstacle):
+    for i in obstacle.particles:
+            i[0] = (obstacle.vel_lat*deltaT) + 0.5*(obstacle.acc_lat)*(deltaT**2) + i[0] + np.random.normal(mean,std,1)
+            i[1] = (obstacle.vel_long*deltaT) + 0.5*(obstacle.acc_long)*(deltaT**2) + i[1] + np.random.normal(mean,std,1)
+    return obstacle
 
 
 def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
@@ -73,7 +88,7 @@ def generate_nodes(parent,obs_lat_ini,obs_long_ini,scene_len,obs_vel, obs_acc):
 
 
     # generating position of dynamic obstacles given the previous position and simple mathematical model of the obstacles.
-    obs_dist_long, obs_dist_lat = dynamic_obs_gen(1.875/6.33,obs_vel, obs_acc, obs_long_ini, obs_lat_ini)
+    obs_dist_long, obs_dist_lat = dynamic_obs_gen(1.875/6.33,obs_vel, obs_acc, obs_long_ini, obs_lat_ini) #TODOpass obstacles class object
 
     child = state(0,6.33,0,0,0,0,0,0,0)
     child1 = state(0,6.33,0,0,0,0,0,0,0)
@@ -179,7 +194,7 @@ if __name__ == "__main__":
     obs_long = [[10,11.5]]
     obs_vel = [0]
     obs_acc = [0]
-    scene_len = 20
+    scene_len = 24
     # for count in scene_len:
     t = time.time()
     temp = generate_nodes(temp, obs_lat, obs_long,scene_len,obs_vel, obs_acc)
