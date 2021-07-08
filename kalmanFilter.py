@@ -1,5 +1,5 @@
 import numpy as np
-
+from randomNums import random_nums
 def Predict(prevState, prevCov, stateMatrix, controlMatrix, observationCov, controlValues):
     stateEstimate = stateMatrix.dot(prevState) + controlMatrix.dot(controlValues)
     covEstimate = stateMatrix.dot(prevCov.dot(stateMatrix.T)) + observationCov
@@ -14,7 +14,7 @@ def KalmanGain(prevCov, stateObservation, statePredict, covPredict, observationM
 
 def Update(KalGain, statePredict, measurementRes, observationMatrix, covPredict):
     stateUpdate = statePredict + KalGain.dot(measurementRes)
-    covUpdate  = (np.eye(observationMatrix.ndim)  - KalGain.dot(observationMatrix)).dot(prevCov)
+    covUpdate  = (np.eye(observationMatrix.ndim)  - KalGain.dot(observationMatrix)).dot(covPredict)
     return stateUpdate, covUpdate
 
 def KalmanFilter(prevState, prevCov, controlValues, stateObservation, observationCov, stateMatrix, controlMatrix, observationMatrix):
@@ -29,28 +29,29 @@ def KalmanFilter(prevState, prevCov, controlValues, stateObservation, observatio
 
 
 if __name__ == "__main__":
-    prevState = np.array([0,0])
+    x = np.array([0,0])
     deltaT = 0.1
-    prevCov = np.eye(2)
-    prevCov[0][0] = 0.9 
-    prevCov[0][1] = 0.1
-    prevCov[1][0] = 0.2 
-    prevCov[1][1] = 0.8
+    scov = np.eye(2)
+    scov[0][0] = 0.9 
+    scov[0][1] = 0.1
+    scov[1][0] = 0.2 
+    scov[1][1] = 0.8
     stateMatrix = np.eye(2)
     controlMatrix = np.array([[deltaT,0],[0,deltaT]])
     observationMatrix = np.eye(2)
-    ObservationCov = np.array([[0.5,0.5],[0.1,0.9]])
+    ObservationCov = np.array([[0.9,0.1],[0.1,0.9]])
     filteredStates = []
     filteredCov = []
-    a = np.array([np.array([i/10 +np.random.uniform(0,0.1),i/10 + np.random.uniform(0,0.1)]) for i in range(1,1000)])
-    print(a)
+    # a = np.array([np.array([i/100 +random_nums[i][0],i/100 + random_nums[i][1]]) for i in range(1,100)])
+    a = np.array([np.array([i/100,i/100]) for i in range(1,100)])
+    print(a, "\n")
     controlValues = np.array([1,1])
     # todo controlValues, stateObservation, ObservationCov // Will be given inside a time loop
     for i in a:
-        prevState, prevCov = KalmanFilter(prevState,prevCov,controlValues,i,ObservationCov, stateMatrix, controlMatrix, observationMatrix)
-        filteredStates.append(prevState)
-        filteredCov.append(prevCov)
-        print(prevState)
+        x, scov = KalmanFilter(x,scov,controlValues,i,ObservationCov, stateMatrix, controlMatrix, observationMatrix)
+        filteredStates.append(x)
+        filteredCov.append(scov)
+        print(x)
 
 
 
