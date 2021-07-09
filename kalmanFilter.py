@@ -42,13 +42,13 @@ if __name__ == "__main__":
     controlMatrix = np.array([[deltaT,0],[0,deltaT]]) #Bk
     observationMatrix = np.eye(2) #Hk
     ObservationCov = np.array([[0.6,0.4],[0,1]]) # (R_k)
-    ProcessCov = np.array([[0.7,0.3],[0.1,0.9]]) # process covariance matrix value (Q_k)
+    ProcessCov = np.array([[1,0],[0,1]]) # process covariance matrix value (Q_k)
 
     filteredStates = []
     filteredCov = []
 
-    a = np.array([np.array([i/10 +random_nums[i][0],i/100 + random_nums[i][1]]) for i in range(1,100)]) # this line adds noise to the exact model 
-    actual = np.array([np.array([i/10,i/100]) for i in range(1,100)]) #exact model for plotting purposes
+    a = np.array([np.array([i/10 +random_nums[i][0],i**2/100 + random_nums[i][1]]) for i in range(1,100)]) # this line adds noise to the exact model 
+    actual = np.array([np.array([i/10,i**2/100]) for i in range(1,100)]) #exact model for plotting purposes
 
     print(a, "\n")
     prev = np.array([0,0])
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     # todo controlValues, stateObservation, ObservationCov // Will be given inside a time loop
     for i in a:
         # controlValues = np.array([(a[count][0] - prev[0])/deltaT, (a[count][1] - prev[1])/deltaT])
-        controlValues = np.array([1,0.1])
+        controlValues = np.array([1,0.1*(1+2*count)])
         x, scov = KalmanFilter(x,scov,controlValues,i,ProcessCov, stateMatrix, controlMatrix, observationMatrix)
         filteredStates.append(x)
         filteredCov.append(scov)
