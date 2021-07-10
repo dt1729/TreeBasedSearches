@@ -1,30 +1,43 @@
 import numpy as np
 from randomNums import random_nums
 import matplotlib.pyplot as plt
-def Predict(prevState, prevCov, stateMatrix, controlMatrix, ProcessCov, controlValues):
-    stateEstimate = stateMatrix.dot(prevState) + controlMatrix.dot(controlValues)
-    covEstimate = stateMatrix.dot(prevCov.dot(stateMatrix.T)) + ProcessCov
-    return stateEstimate, covEstimate
 
-def KalmanGain(prevCov, stateObservation, statePredict, covPredict, observationMatrix,ObservationCov):
-    measurementRes = stateObservation - observationMatrix.dot(statePredict)
-    covRes = observationMatrix.dot(covPredict.dot(observationMatrix.T)) + ObservationCov
-    KalGain = prevCov.dot((observationMatrix.T).dot(np.linalg.inv(covRes)))
-    return KalGain, measurementRes
+class KalmanFilter:
+    def __init__(self,prevState, prevCov, ProcessCov, stateMatrix, controlMatrix, observationMatrix,ObservationCov):
+        self.x = prevState #evolving from apriori state estimate
+        self.prevCov = prevCov #evolving from 
+        # self.u = controlValues
+        # self.z = stateObservation
+        self.Q = ProcessCov
+        self.A = stateMatrix
+        self.B = controlMatrix
+        self.H = observationMatrix
+        self.R = ObservationCov
 
-def Update(KalGain, statePredict, measurementRes, observationMatrix, covPredict):
-    stateUpdate = statePredict + KalGain.dot(measurementRes)
-    covUpdate  = (np.eye(observationMatrix.ndim)  - KalGain.dot(observationMatrix)).dot(covPredict)
-    return stateUpdate, covUpdate
+    def Predict(self,controlValues):
+        stateEstimate = self.A.dot(self.x) + self.B.dot(controlValues)
+        covEstimate = self.A.dot(self.prevCov.dot(self.A.T)) + self.Q
+        return stateEstimate, covEstimate
 
-def KalmanFilter(prevState, prevCov, controlValues, stateObservation, ProcessCov, stateMatrix, controlMatrix, observationMatrix):
-    statePredict, covPredict = Predict(prevState, prevCov, stateMatrix, controlMatrix, ProcessCov, controlValues) 
-    # print("step1 done")
-    KalGain, measurementRes = KalmanGain(prevCov, stateObservation,statePredict, covPredict, observationMatrix, ObservationCov)
-    # print("step2 done")
-    stateUpdate, covUpdate = Update(KalGain, statePredict, measurementRes, observationMatrix,covPredict)
-    # print("step3 done")
-    return stateUpdate, covUpdate
+    def KalmanGain(self,xhat, Pk, stateObservation):
+        measurementRes = stateObservation - self.H.dot(xhat)
+        covRes = self.H.dot(Pk.dot(self.H.T)) + self.R
+        KalGain = self.prevCov.dot((self.H.T).dot(np.linalg.inv(covRes)))
+        return KalGain, measurementRes
+
+    def Update(self,KalGain, xhat, measurementRes, Pk):
+        stateUpdate = xhat + KalGain.dot(measurementRes)
+        covUpdate  = (np.eye(self.H.ndim)  - KalGain.dot(self.H)).dot(Pk)
+        return stateUpdate, covUpdate
+
+    def KF(self,controlValues,stateObservation):
+        statePredict, covPredict = self.Predict(controlValues)
+        # print("step1 done")
+        KalGain, measurementRes = self.KalmanGain(statePredict, covPredict, stateObservation)
+        # print("step2 done")
+        stateUpdate, covUpdate = self.Update(KalGain, statePredict, measurementRes, covPredict)
+        # print("step3 done")
+        return stateUpdate, covUpdate
 
 
 
@@ -42,7 +55,7 @@ if __name__ == "__main__":
     controlMatrix = np.array([[deltaT,0],[0,deltaT]]) #Bk
     observationMatrix = np.eye(2) #Hk
     ObservationCov = np.array([[0.6,0.4],[0,1]]) # (R_k)
-    ProcessCov = np.array([[1,0],[0,1]]) # process covariance matrix value (Q_k)
+    ProcessCov = np.array([[0.5,0],[0,0.5]]) # process covariance matrix value (Q_k)
 
     filteredStates = []
     filteredCov = []
@@ -54,17 +67,18 @@ if __name__ == "__main__":
     prev = np.array([0,0])
     count = 0
 
+    newKalman = KalmanFilter(x,scov,ProcessCov, stateMatrix, controlMatrix, observationMatrix, ObservationCov)
     # todo controlValues, stateObservation, ObservationCov // Will be given inside a time loop
     for i in a:
         # controlValues = np.array([(a[count][0] - prev[0])/deltaT, (a[count][1] - prev[1])/deltaT])
         controlValues = np.array([1,0.1*(1+2*count)])
-        x, scov = KalmanFilter(x,scov,controlValues,i,ProcessCov, stateMatrix, controlMatrix, observationMatrix)
-        filteredStates.append(x)
-        filteredCov.append(scov)
+        newKalman.x, newKalman.prevCov = newKalman.KF(controlValues,i)
+        filteredStates.append(newKalman.x)
+        filteredCov.append(newKalman.prevCov)
         # prev = i
-        prev = x
+        prev = newKalman.x
         count = count + 1
-        print(x)
+        print(newKalman.x)
 
     # Plotting of outputs    
     ansx = [i[0] for i in filteredStates]
@@ -84,11 +98,15 @@ if __name__ == "__main__":
     plt.plot(ansx,ansy,'b', label='Filtered')
     plt.plot(absx,absy,'r', label='Measured')
     plt.plot(pathTrackedx, pathTrackedy, 'g', label='Mathematical Model')
+    plt.xlabel('meters')
+    plt.ylabel('meters')
     plt.title('Estimation')
 
     plt.subplot(122)
     plt.plot(error_plotx, label='Error in x')
     plt.plot(error_ploty, label='Error in y')
+    plt.xlabel('sample number')
+    plt.ylabel('magnitude')
     plt.title('error')
 
 
