@@ -5,10 +5,8 @@ import matplotlib.pyplot as plt
 class KalmanFilter:
     def __init__(self,prevState, prevCov, ProcessCov, stateMatrix, controlMatrix, observationMatrix,ObservationCov):
         self.x = prevState #evolving from apriori state estimate
-        self.prevCov = prevCov #evolving from 
-        # self.u = controlValues
-        # self.z = stateObservation
-        self.Q = ProcessCov
+        self.prevCov = prevCov #evolving from previous estimate
+        self.Q = ProcessCov 
         self.A = stateMatrix
         self.B = controlMatrix
         self.H = observationMatrix
@@ -43,7 +41,7 @@ class KalmanFilter:
 
 if __name__ == "__main__":
 
-    x = np.array([0,0])
+    x = np.array([0,4.5])
     deltaT = 0.1
     scov = np.eye(2) # initial value of Process covariance matrix 
     scov[0][0] = 0.9 
@@ -55,13 +53,13 @@ if __name__ == "__main__":
     controlMatrix = np.array([[deltaT,0],[0,deltaT]]) #Bk
     observationMatrix = np.eye(2) #Hk
     ObservationCov = np.array([[0.6,0.4],[0,1]]) # (R_k)
-    ProcessCov = np.array([[0.5,0],[0,0.5]]) # process covariance matrix value (Q_k)
+    ProcessCov = np.array([[1,0],[0,1]]) # process covariance matrix value (Q_k)
 
     filteredStates = []
     filteredCov = []
 
-    a = np.array([np.array([i/10 +random_nums[i][0],i**2/100 + random_nums[i][1]]) for i in range(1,100)]) # this line adds noise to the exact model 
-    actual = np.array([np.array([i/10,i**2/100]) for i in range(1,100)]) #exact model for plotting purposes
+    a = np.array([np.array([i/20 +random_nums[i][0],i/20 + random_nums[i][1]]) for i in range(1,100)]) # this line adds noise to the exact model 
+    actual = np.array([np.array([i/20,i/20]) for i in range(1,100)]) #exact model for plotting purposes
 
     print(a, "\n")
     prev = np.array([0,0])
@@ -71,14 +69,14 @@ if __name__ == "__main__":
     # todo controlValues, stateObservation, ObservationCov // Will be given inside a time loop
     for i in a:
         # controlValues = np.array([(a[count][0] - prev[0])/deltaT, (a[count][1] - prev[1])/deltaT])
-        controlValues = np.array([1,0.1*(1+2*count)])
+        controlValues = np.array([0.5,0.5])
         newKalman.x, newKalman.prevCov = newKalman.KF(controlValues,i)
         filteredStates.append(newKalman.x)
         filteredCov.append(newKalman.prevCov)
         # prev = i
         prev = newKalman.x
         count = count + 1
-        print(newKalman.x)
+        print(newKalman.prevCov)
 
     # Plotting of outputs    
     ansx = [i[0] for i in filteredStates]
@@ -112,8 +110,3 @@ if __name__ == "__main__":
 
     plt.legend()
     plt.show()
-    
-
-
-
-
