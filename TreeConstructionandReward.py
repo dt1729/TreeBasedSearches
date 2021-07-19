@@ -55,6 +55,7 @@ class state:
         self.pos = [lane_offset,longitudinal]
         self.action = action
         self.time = time
+        self.obs_pos = []
 
 class obstacle:
     def __init__(self, obs_mean_ini_lat, obs_mean_ini_long, obs_cov_ini,obs_vel_ini_lat,obs_vel_ini_long, obs_acc_ini_lat,obs_acc_ini_long):
@@ -80,25 +81,29 @@ def add_node(parent, child):
 def reward_func(child,obs_dist_lat,obs_dist_long,prev_action,prev_reward,scene_len):
     reward = 0
     k = 10
-    if child.pos[0] >= scene_len or abs(child.pos[1]) >= 1.875:
+    if child.pos[1] >= scene_len+1.875 or abs(child.pos[0]) >= 1.875:
         return terminatingRew
     if child.time >= scene_len/6.33:
         return terminatingRew
     # for i in range(len(obs_dist_long)):
-    if obs_dist_long-2.35 < child.pos[0] and obs_dist_long+2.35 > child.pos[0] and obs_dist_lat-1.45 < child.pos[1] and obs_dist_lat+1.45 > child.pos[1]:
+    # if obs_dist_lat - 1.45 < child.pos[0]:
+    #     # print('here')
+    #     if obs_dist_lat + 1.45 > child.pos[0] and obs_dist_long-2.35 < child.pos[1] and obs_dist_long+2.35 > child.pos[1]:
+    #         print("in")
+    #         return terminatingRew
+    if obs_dist_lat-1.45 < child.pos[0] and obs_dist_lat+1.45 > child.pos[0] and obs_dist_long-2.35 < child.pos[1] and obs_dist_long+2.35 > child.pos[1]:
             # print(child.pos, obs_dist_lat, obs_dist_long)
             return terminatingRew
     else:
         reward = reward -1
-    if child.pos[0] < scene_len and child.pos[0] > scene_len-2 and abs(child.pos[1]) < 1.875 :
+    if child.pos[1] > scene_len and abs(child.pos[0]) < 1.875 :
         return goalRew
 
     # reward = reward + 100/(1 + exp(abs(scene_len - child.pos[0])))
     # reward = reward - k*abs(scene_len - child.pos[0])/scene_len
     # reward = reward - k*abs(0 - child.pos[1])/1.875
     # reward = reward - k*abs((scene_len/6.33) - child.time)/(scene_len/6.33)
-    reward = reward - k*(abs(child.pos[1]))/1.875
-    reward = reward - 1
+    reward = reward - k*(abs(child.pos[0]))/1.875
     return reward
 
 
@@ -128,13 +133,16 @@ def dynamic_obs_stochastic(deltaT,obstacle):
 def generate_nodes(parent,obstacle_info,scene_len,newKalman):
     #0->go left lane, 1-> stay, 2->go right
     obs_info = []
+    # print(parent.pos)
+    newKalman.x = obstacle_info.mean
     newKalman.x, newKalman.prevCov = newKalman.Predict([obstacle_info.vel_lat,obstacle_info.vel_long])
     obstacle_info.cov = newKalman.prevCov
     obstacle_info.mean = newKalman.x
+
     # print(newKalman.x)
     for i in range(2):
         obs_info = obstacle_info.generate_sample()
-        print(obstacle_info.cov)
+        # print(obstacle_info.cov)
         obs = obstacle(obs_info[0],obs_info[1], obstacle_info.cov,obstacle_info.vel_lat,obstacle_info.vel_long,0,0)
         # generating position of dynamic obstacles given the previous position and simple mathematical model of the obstacles.
 
@@ -142,8 +150,8 @@ def generate_nodes(parent,obstacle_info,scene_len,newKalman):
         child1 = state(0,6.33,0,0,0,0,0,0,0)
         child2 = state(0,6.33,0,0,0,0,0,0,0)
         
-        child1.pos[0] = parent.pos[0] + 1.875
-        child1.pos[1] = parent.pos[1] + 0
+        child1.pos[1] = parent.pos[1] + 1.875
+        child1.pos[0] = parent.pos[0] + 0
         child1.action = 1
         child1.time =  parent.time + (1.875/6.33)
         child1.reward = reward_func(child1,obs.mean[0], obs.mean[1],parent.action,parent.reward,scene_len)
@@ -154,10 +162,11 @@ def generate_nodes(parent,obstacle_info,scene_len,newKalman):
 
         # push in children of the parent 
         parent.children.append(child1)
+        
 
         # print(parent.pos[1])  
-        child.pos[0] = parent.pos[0] + (0.9375*(sqrt(3)))
-        child.pos[1] = parent.pos[1] - 0.9375
+        child.pos[1] = parent.pos[1] + (0.9375*(sqrt(3)))
+        child.pos[0] = parent.pos[0] - 0.9375
         child.action = 0
         child.reward = reward_func(child,obs.mean[0], obs.mean[1],parent.action,parent.reward,scene_len)
         # child.time =  parent.time + (sqrt(0.935**2 + (0.935*sqrt(3))**2)/6.33)
@@ -171,8 +180,8 @@ def generate_nodes(parent,obstacle_info,scene_len,newKalman):
         parent.children.append(child)
 
 
-        child2.pos[0] = parent.pos[0] + 0.9375*(sqrt(3))
-        child2.pos[1] = parent.pos[1] + 0.9375
+        child2.pos[1] = parent.pos[1] + 0.9375*(sqrt(3))
+        child2.pos[0] = parent.pos[0] + 0.9375
         child2.action = 2
         child2.reward = reward_func(child2,obs.mean[0], obs.mean[1],parent.action,parent.reward,scene_len)
         # child2.time =  parent.time + (sqrt(0.935**2 + (0.935*sqrt(3))**2)/6.33)
@@ -182,6 +191,7 @@ def generate_nodes(parent,obstacle_info,scene_len,newKalman):
             # print(child2.pos[0])
             child2 = generate_nodes(child2, obs ,scene_len,newKalman)
         parent.children.append(child2)
+        parent.obs_pos = obs_info
     return parent
 
 def merge(a,b):
@@ -218,13 +228,13 @@ def bestBranch(dt):
     prev_sum = -inf
     sum = 0
     best_branch = []
-    for i in dt:
-        for k in i:
+    for i in dt: #iterating through all the lists generated by DFS
+        for k in i: #summing up reward to find the best branch
             sum = sum + k.reward
         if sum > prev_sum:
             # print(sum,"\n")
-            print([[i[p].pos[0],i[p].pos[1], i[p].time] for p in range(len(i))],"\n")
-            print([[i[k-1].action,i[k].pos[1]] for k in range(len(i))],"\n")
+            # print([[i[p].pos[0],i[p].pos[1], i[p].time, i[p].obs_pos] for p in range(len(i))],"\n")
+            # print([[i[k-1].action,i[k].pos[0]] for k in range(len(i))],"\n")
             ansPos = [[i[p].pos[0],i[p].pos[1], i[p].time] for p in range(len(i))]
             ansAction = [[i[p-1].action,i[p].pos[1]] for p in range(len(i))]
             # please remember that you've mapped actions incorrectly
@@ -238,19 +248,17 @@ def BFS(parent):
      
 if __name__ == "__main__":
     temp = state(0,6.33,0,0,0,0,0,0,time.time()/10000000000)
-    obs_lat = [[-0.875,0.875]]
-    obs_long = [[10,11.5]]
-    obs_vel = [0,0]
+    obs_vel = [0,1]
     obs_acc = [0,0]
     scene_len = 15
 
     
     # for count in scene_len:
     ############################ KALMAN FILTER INITIALISATION ###########################
-    x = np.array([0,10.75])
+    x = np.array([0,5.75])
     deltaT = 1.875/6.33
     scov = np.eye(2) # initial value of Process covariance matrix 
-    scov[0][0] = 0.1
+    scov[0][0] = 0.04
     scov[0][1] = 0.0
     scov[1][0] = 0.0 
     scov[1][1] = 0.1
@@ -265,7 +273,7 @@ if __name__ == "__main__":
 
     ####################################################################################
 
-    obstacle_info = obstacle(0,10.75,scov,obs_vel[0],obs_vel[1],0,0)
+    obstacle_info = obstacle(x[0],x[1],scov,obs_vel[0],obs_vel[1],0,0)
 
     t = time.time()
     temp = generate_nodes(temp, obstacle_info,scene_len,newKalman)
