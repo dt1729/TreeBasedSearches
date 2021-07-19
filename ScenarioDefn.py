@@ -22,7 +22,7 @@ if __name__ == "__main__":
     t = time.time()
     temp = tree.generate_nodes(temp, obs_lat, obs_long,scene_len,obs_vel, obs_acc)
     ans1 = [[]]
-    dt,_ = tree.DFS(temp,ans1)
+    dt,_ = tree.DFS(temp)
     current_path = tree.bestBranch(dt)
     ans1.clear()
     t = time.time() - t
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             deltatime = time.time()
             temp = tree.generate_nodes(temp, obs_lat, obs_long,scene_len,obs_vel, obs_acc)
             ans1 = [[]]
-            dt,_ = tree.DFS(temp,ans1)
+            dt,_ = tree.DFS(temp)
             ans1.clear()
             current_path = tree.bestBranch(dt)
             #TODO DEBUG
